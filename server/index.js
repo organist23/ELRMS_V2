@@ -39,6 +39,9 @@ app.use(require('./routes/leaveCard'));
 app.use(require('./routes/tardy'));
 app.use(require('./routes/system'));
 
-app.listen(PORT, () => {
+// Start accepting requests only after the schema migrations have run (they are quick and idempotent).
+require('./helpers/migrations').runMigrations(db)
+    .catch((err) => console.error('[Migration] failed:', err.message))
+    .finally(() => app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-});
+}));

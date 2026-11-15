@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../../utils/api';
+import { filterDecimalInput } from '../../utils/decimalInput';
 import { X } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 
@@ -120,13 +121,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
                     className="input-field" 
                     required 
                     value={formData.initial_vl} 
-                    onChange={e => {
-                      const val = e.target.value.replace(/[^0-9.]/g, '');
-                      // Allow only one dot
-                      const parts = val.split('.');
-                      const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
-                      setFormData({ ...formData, initial_vl: filtered });
-                    }} 
+                    onChange={e => setFormData({ ...formData, initial_vl: filterDecimalInput(e.target.value) })} 
                   />
                 </div>
                 <div className="form-group">
@@ -136,12 +131,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
                     className="input-field" 
                     required 
                     value={formData.initial_sl} 
-                    onChange={e => {
-                      const val = e.target.value.replace(/[^0-9.]/g, '');
-                      const parts = val.split('.');
-                      const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
-                      setFormData({ ...formData, initial_sl: filtered });
-                    }} 
+                    onChange={e => setFormData({ ...formData, initial_sl: filterDecimalInput(e.target.value) })} 
                   />
                 </div>
               </div>

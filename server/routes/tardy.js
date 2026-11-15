@@ -42,7 +42,7 @@ router.post('/api/tardy/deduct', async (req, res) => {
         const currentVL = parseFloat(bal.vacation_leave || 0);
         const days = parseFloat(equivalent_day);
 
-        if (days <= 0) throw new Error('Equivalent day must be greater than 0');
+        if (!Number.isFinite(days) || days <= 0) throw new Error('Equivalent day must be greater than 0');
 
         // 2. Split pay math (same pattern as leave approve)
         const with_pay = Math.min(days, currentVL);
@@ -56,8 +56,8 @@ router.post('/api/tardy/deduct', async (req, res) => {
 
         // 4. Save tardy record
         const [result] = await connection.execute(
-            'INSERT INTO tardy_deductions (employee_id, equivalent_day, period_text, remarks, status) VALUES (?, ?, ?, ?, ?)',
-            [employee_id, days, period_text, remarks || null, 'Deducted']
+            'INSERT INTO tardy_deductions (employee_id, equivalent_day, deducted_with_pay, period_text, remarks, status) VALUES (?, ?, ?, ?, ?, ?)',
+            [employee_id, days, with_pay, period_text, remarks || null, 'Deducted']
         );
 
         // 5. Write ledger snapshot
@@ -95,7 +95,7 @@ router.post('/api/tardy/undo', async (req, res) => {
         await connection.beginTransaction();
 
         // 1. Get the tardy record
-        const [rows] = await connection.execute('SELECT * FROM tardy_deductions WHERE id = ?', [tardy_id]);
+        const [rows] = await connection.execute('SELECT * FROM tardy_deductions WHERE id = ? FOR UPDATE', [tardy_id]);
         if (rows.length === 0) throw new Error('Tardy record not found');
         const tardy = rows[0];
         if (tardy.status !== 'Deducted') throw new Error('Only active deductions can be undone');
@@ -103,7 +103,11 @@ router.post('/api/tardy/undo', async (req, res) => {
         // Check if the tardy record belongs to a closed month
         await assertMonthOpen(connection, tardy.deduction_date, 'Undo', 'tardiness record');
 
-        const days = parseFloat(tardy.equivalent_day);
+        // Give back only what was actually taken from VL. Rows saved before deducted_with_pay existed
+        // have it NULL and fall back to the full amount (none of those had an unpaid part).
+        const days = tardy.deducted_with_pay === null || tardy.deducted_with_pay === undefined
+            ? parseFloat(tardy.equivalent_day)
+            : parseFloat(tardy.deducted_with_pay);
 
         // 2. Restore VL
         await connection.execute(
@@ -151,7 +155,7 @@ router.post('/api/tardy/redo', async (req, res) => {
         await connection.beginTransaction();
 
         // 1. Get the tardy record
-        const [rows] = await connection.execute('SELECT * FROM tardy_deductions WHERE id = ?', [tardy_id]);
+        const [rows] = await connection.execute('SELECT * FROM tardy_deductions WHERE id = ? FOR UPDATE', [tardy_id]);
         if (rows.length === 0) throw new Error('Tardy record not found');
         const tardy = rows[0];
         if (tardy.status !== 'Undone') throw new Error('Only undone deductions can be redone');
@@ -179,8 +183,8 @@ router.post('/api/tardy/redo', async (req, res) => {
 
         // 4. Update tardy status back to Deducted
         await connection.execute(
-            'UPDATE tardy_deductions SET status = ? WHERE id = ?',
-            ['Deducted', tardy_id]
+            'UPDATE tardy_deductions SET status = ?, deducted_with_pay = ? WHERE id = ?',
+            ['Deducted', with_pay, tardy_id]
         );
 
         // 5. Write ledger snapshot

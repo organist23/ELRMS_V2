@@ -35,6 +35,15 @@ router.post('/api/leaves/apply', async (req, res) => {
             return res.status(400).json({ error: 'Invalid Date Range: "Date To" cannot be earlier than "Date From".' });
         }
 
+        // Only real leave types, and a positive number of days (0.5 for a half day is fine)
+        if (!Object.prototype.hasOwnProperty.call(LEAVE_BALANCE_FIELD, leave_type)) {
+            return res.status(400).json({ error: `Unknown leave type: ${leave_type}` });
+        }
+        const days = Number(num_days);
+        if (num_days === '' || num_days === null || num_days === undefined || !Number.isFinite(days) || days <= 0) {
+            return res.status(400).json({ error: 'Number of days must be greater than 0.' });
+        }
+
         // Validation check for privileges
         const [balanceRows] = await db.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [employee_id]);
         if (balanceRows.length === 0) return res.status(404).json({ error: 'Employee balance not found' });
@@ -74,9 +83,10 @@ router.post('/api/leaves/approve', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
+        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ? FOR UPDATE', [application_id]);
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
+        if (app_data.status !== 'Pending Approval') throw new Error('Only pending applications can be approved');
 
         // Check if the leave application belongs to a closed month (accrual already generated)
         await assertMonthOpen(connection, app_data.applied_at, 'Approve', 'leave application');
@@ -142,7 +152,7 @@ router.post('/api/leaves/undo', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
+        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ? FOR UPDATE', [application_id]);
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
         if (app_data.status !== 'Approved') throw new Error('Only approved applications can be undone');
@@ -190,9 +200,10 @@ router.post('/api/leaves/reject', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
+        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ? FOR UPDATE', [application_id]);
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
+        if (app_data.status !== 'Pending Approval') throw new Error('Only pending applications can be rejected');
 
         // Check if the leave application belongs to a closed month (accrual already generated)
         await assertMonthOpen(connection, app_data.applied_at, 'Reject', 'leave application');

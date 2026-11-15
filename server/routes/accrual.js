@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { MONTH_NAMES } = require('../constants');
+const { isClosedSql } = require('../helpers/closedMonth');
 
 const router = express.Router();
 
@@ -165,6 +166,60 @@ router.post('/api/accrual/rollover', async (req, res) => {
         res.status(400).json({ error: error.message });
     } finally {
         connection.release();
+    }
+});
+
+// Before generating credits: what would generating this month lock, and is it early?
+// Read-only. Generating credits for M/Y closes M/Y and every earlier month, so pending leaves filed in
+// those months could never be approved or rejected afterwards.
+router.get('/api/accrual/precheck', async (req, res) => {
+    try {
+        const now = new Date();
+        const month = parseInt(req.query.month) || (now.getMonth() + 1);
+        const year = parseInt(req.query.year) || now.getFullYear();
+        if (month < 1 || month > 12) return res.status(400).json({ error: 'Month must be between 1 and 12.' });
+
+        // Pending leaves that are still open now but would be locked by this run
+        const [pendingLeaves] = await db.execute(`
+            SELECT l.id, l.employee_id, e.full_name, l.leave_type, l.num_days, l.inclusive_dates, l.applied_at
+            FROM leave_applications l
+            JOIN employees e ON l.employee_id = e.id
+            WHERE l.status = 'Pending Approval'
+              AND (YEAR(l.applied_at) < ? OR (YEAR(l.applied_at) = ? AND MONTH(l.applied_at) <= ?))
+              AND NOT (${isClosedSql('l.applied_at')})
+            ORDER BY l.applied_at ASC
+        `, [year, year, month]);
+
+        // Tardy deductions that can still be undone now but not after this run
+        const [[tardy]] = await db.execute(`
+            SELECT COUNT(*) AS n FROM tardy_deductions t
+            WHERE t.status = 'Deducted'
+              AND (YEAR(t.deduction_date) < ? OR (YEAR(t.deduction_date) = ? AND MONTH(t.deduction_date) <= ?))
+              AND NOT (${isClosedSql('t.deduction_date')})
+        `, [year, year, month]);
+
+        // Timing: credits are normally generated in the last 3 days of the month (29-31 in a 31-day month)
+        const lastDay = new Date(year, month, 0).getDate();
+        const windowStartDay = lastDay - 2;
+        const targetStart = new Date(year, month - 1, 1);
+        const windowStart = new Date(year, month - 1, windowStartDay);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const isEarly = today < windowStart;
+
+        res.json({
+            month,
+            year,
+            monthName: MONTH_NAMES[month - 1],
+            today: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+            windowStartDay,
+            lastDay,
+            isEarly,
+            isFutureMonth: today < targetStart,
+            pendingLeaves,
+            undoableTardyCount: Number(tardy.n)
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 
