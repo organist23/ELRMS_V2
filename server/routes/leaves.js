@@ -74,9 +74,10 @@ router.post('/api/leaves/approve', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
+        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ? FOR UPDATE', [application_id]);
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
+        if (app_data.status !== 'Pending Approval') throw new Error('Only pending applications can be approved');
 
         // Check if the leave application belongs to a closed month (accrual already generated)
         await assertMonthOpen(connection, app_data.applied_at, 'Approve', 'leave application');
@@ -142,7 +143,7 @@ router.post('/api/leaves/undo', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
+        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ? FOR UPDATE', [application_id]);
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
         if (app_data.status !== 'Approved') throw new Error('Only approved applications can be undone');
@@ -190,9 +191,10 @@ router.post('/api/leaves/reject', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
+        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ? FOR UPDATE', [application_id]);
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
+        if (app_data.status !== 'Pending Approval') throw new Error('Only pending applications can be rejected');
 
         // Check if the leave application belongs to a closed month (accrual already generated)
         await assertMonthOpen(connection, app_data.applied_at, 'Reject', 'leave application');
