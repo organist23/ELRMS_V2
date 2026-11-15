@@ -1,8 +1,9 @@
 import React from 'react';
 import { Send } from 'lucide-react';
+import { guardIssues } from './CreditGuard';
 
 // Employee Management: "Generate Monthly Credits (1.25)" box (month/year come from the server audit).
-const MonthlyCreditsPanel = ({ accrualMonth, accrualYear, isGenerating, audit, handleGenerateCredits }) => (
+const MonthlyCreditsPanel = ({ accrualMonth, accrualYear, isGenerating, audit, precheck, handleGenerateCredits }) => (
   <div className="premium-card mb-40" style={{ background: 'var(--accent-light)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
     {/* Label */}
     <div className="flex items-center gap-14" style={{ flexShrink: 0 }}>
@@ -40,7 +41,7 @@ const MonthlyCreditsPanel = ({ accrualMonth, accrualYear, isGenerating, audit, h
       </div>
 
       <button
-        className="btn-primary"
+        className={`btn-primary${guardIssues(audit, precheck) && !isGenerating && !audit?.pendingRollover ? ' cg-attention' : ''}`}
         style={{
           height: '44px',
           padding: '0 28px',

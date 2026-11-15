@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { UserPlus } from 'lucide-react';
 import MonthlyCreditsPanel from '../components/employees/MonthlyCreditsPanel';
+import { CreditGuardNotice, CreditGuardModal, guardIssues } from '../components/employees/CreditGuard';
 import EmployeeList from '../components/employees/EmployeeList';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import RegisterEmployeeModal from '../components/modals/RegisterEmployeeModal';
@@ -46,6 +47,8 @@ const Employees = () => {
   const [accrualMonth, setAccrualMonth] = useState(new Date().getMonth() + 1);
   const [accrualYear, setAccrualYear] = useState(new Date().getFullYear());
   const [audit, setAudit] = useState(null);
+  const [precheck, setPrecheck] = useState(null); // what generating credits now would lock
+  const [isGuardOpen, setIsGuardOpen] = useState(false);
 
   const fetchAudit = async () => {
     try {
@@ -54,6 +57,16 @@ const Employees = () => {
       // Auto-sync the display values with server-side time
       if (data.month) setAccrualMonth(data.month);
       if (data.year) setAccrualYear(data.year);
+      if (data.pendingAccrual) {
+        try {
+          const { data: pc } = await api.get('/accrual/precheck', { params: { month: data.month, year: data.year } });
+          setPrecheck(pc);
+        } catch (err) {
+          setPrecheck(null); // the notice is optional; generating still works without it
+        }
+      } else {
+        setPrecheck(null);
+      }
     } catch (err) {
       console.error('Audit failed', err);
     }
@@ -99,12 +112,21 @@ const Employees = () => {
   }, [selectedEmp?.id]);
 
   const handleGenerateCredits = async () => {
+    // Something would be locked or it is early: show the animated confirmation instead of the plain one
+    if (guardIssues(audit, precheck)) {
+      setIsGuardOpen(true);
+      return;
+    }
     const isConfirmed = await confirm(
       'Generate Credits',
       `Are you sure you want to generate 1.25 VL/SL credits for all employees for ${accrualMonth}/${accrualYear}?`
     );
     if (!isConfirmed) return;
+    await runGenerateCredits();
+  };
 
+  const runGenerateCredits = async () => {
+    setIsGuardOpen(false);
     setIsGenerating(true);
     try {
       const { data } = await api.post('/accrual/generate', { month: accrualMonth, year: accrualYear });
@@ -174,8 +196,18 @@ const Employees = () => {
         accrualYear={accrualYear}
         isGenerating={isGenerating}
         audit={audit}
+        precheck={precheck}
         handleGenerateCredits={handleGenerateCredits}
       />
+      <CreditGuardNotice audit={audit} precheck={precheck} onReview={() => navigate('/leaves')} />
+      {isGuardOpen && precheck && (
+        <CreditGuardModal
+          precheck={precheck}
+          onClose={() => setIsGuardOpen(false)}
+          onReview={() => { setIsGuardOpen(false); navigate('/leaves'); }}
+          onGenerate={runGenerateCredits}
+        />
+      )}
 
 
       <div className="employee-layout-grid">

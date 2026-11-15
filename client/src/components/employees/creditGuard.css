@@ -1,0 +1,80 @@
+/* Credit guard: animated notice before generating monthly credits (Employees page). */
+
+.cg-notice {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin: -24px 0 40px;
+  padding: 18px 22px;
+  background: var(--warning-light);
+  border: 1px solid #fde68a;
+  border-left: 4px solid var(--warning);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  animation: cg-slide-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.cg-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--warning);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cg-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--warning);
+  animation: cg-ring 1.8s ease-out infinite;
+}
+
+.cg-title { font-weight: 700; color: #92400e; font-size: 0.95rem; margin-bottom: 6px; }
+.cg-line { display: flex; align-items: center; gap: 8px; color: #78350f; font-size: 0.85rem; line-height: 1.5; margin-top: 4px; }
+.cg-line strong { color: #92400e; }
+.cg-link {
+  background: none; border: none; padding: 0; margin-left: 4px; cursor: pointer;
+  color: var(--primary); font-weight: 700; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 3px;
+  font-family: inherit;
+}
+.cg-link:hover { color: var(--accent); }
+
+/* how far into the month today is */
+.cg-month { margin-top: 12px; max-width: 420px; }
+.cg-month-labels { display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+.cg-track { position: relative; height: 8px; border-radius: 999px; background: #fde68a; overflow: hidden; }
+.cg-window { position: absolute; top: 0; bottom: 0; right: 0; background: var(--success); opacity: 0.55; }
+.cg-fill { position: absolute; top: 0; bottom: 0; left: 0; width: var(--cg-pct); border-radius: 999px; background: var(--warning); animation: cg-fill 1.1s 0.25s ease-out both; }
+
+/* the Generate button while there is something to look at */
+.cg-attention { animation: cg-glow 2s ease-in-out infinite; }
+
+/* confirmation modal */
+.cg-modal { max-width: 560px; animation: cg-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.cg-modal-icon { width: 56px; height: 56px; margin: 0 auto 16px; animation: cg-shake 0.6s 0.3s ease-in-out both; }
+.cg-modal-icon::after { animation-delay: 0.9s; }
+.cg-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--warning-light); border: 1px solid #fde68a; font-size: 0.85rem; color: var(--text-main);
+  animation: cg-slide-in 0.35s ease-out both;
+}
+.cg-item + .cg-item { margin-top: 8px; }
+.cg-item-meta { color: var(--text-muted); font-size: 0.78rem; }
+
+@keyframes cg-slide-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes cg-ring { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes cg-fill { from { width: 0; } to { width: var(--cg-pct); } }
+@keyframes cg-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); } 50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); } }
+@keyframes cg-pop { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes cg-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-12deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(4deg); } }
+
+/* Same information, no motion, for people who turned animations off */
+@media (prefers-reduced-motion: reduce) {
+  .cg-notice, .cg-icon::after, .cg-fill, .cg-attention, .cg-modal, .cg-modal-icon, .cg-item { animation: none !important; }
+}
