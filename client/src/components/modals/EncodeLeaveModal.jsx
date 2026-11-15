@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import api from '../../utils/api';
 import { X, Calendar } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import { countLeaveDays, CALENDAR_DAY_LEAVES } from '../../utils/leaveDays';
 
 const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
   const { showToast } = useNotification();
@@ -55,11 +56,9 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
     if ((field === 'date_from' || field === 'date_to') && newData.date_from && newData.date_to) {
       const start = new Date(newData.date_from);
       const end = new Date(newData.date_to);
-      const diffTime = Math.abs(end - start);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      
-      // Update num_days based on range
-      newData.num_days = diffDays;
+
+      // Update num_days based on range (Sundays excluded, see utils/leaveDays.js)
+      newData.num_days = countLeaveDays(newData.date_from, newData.date_to, newData.leave_type);
       
       // Update string suggest
       const startMonth = start.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
@@ -84,15 +83,28 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
     setLeaveData(newData);
   };
 
+  // Switching to or from a calendar-day leave (Maternity) changes whether Sundays count
+  const handleLeaveTypeChange = (leave_type) => {
+    const newData = { ...leaveData, leave_type };
+    const countingChanged = CALENDAR_DAY_LEAVES.includes(leave_type) !== CALENDAR_DAY_LEAVES.includes(leaveData.leave_type);
+    if (countingChanged && newData.date_from && newData.date_to) {
+      newData.num_days = countLeaveDays(newData.date_from, newData.date_to, leave_type);
+    }
+    setLeaveData(newData);
+  };
+
   // Wellness Leave first-application policy check
   // First application = balance is still at full default (5 days)
   const isFirstWellness = leaveData.leave_type === 'Wellness Leave' && Number(employee.wellness_leave) === 5;
   const wellnessWarning = isFirstWellness && (leaveData.num_days > 3 || leaveData.num_days < 1);
   const isInvalidRange = leaveData.date_from && leaveData.date_to && new Date(leaveData.date_to) < new Date(leaveData.date_from);
+  // A range made only of Sundays gives 0 leave days
+  const isSundayOnly = !isInvalidRange && Number(leaveData.num_days) < 1;
+  const blockSubmit = wellnessWarning || isInvalidRange || isSundayOnly;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (wellnessWarning || isInvalidRange) return; // Guard
+    if (blockSubmit) return; // Guard
     try {
       await api.post('/leaves/apply', leaveData);
       showToast('Leave application submitted for approval', 'success');
@@ -120,7 +132,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
             <select 
               className="input-field" 
               value={leaveData.leave_type} 
-              onChange={e => setLeaveData({...leaveData, leave_type: e.target.value})}
+              onChange={e => handleLeaveTypeChange(e.target.value)}
             >
               <optgroup label="Earned Credits">
                 {earnedLeaves.map(l => <option key={l} value={l}>{l}</option>)}
@@ -192,6 +204,11 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
                 ⚠ Wellness Leave Policy: The first application is limited to a maximum of 3 days (minimum of 1 day).
               </p>
             )}
+            {isSundayOnly && !wellnessWarning && (
+              <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600, lineHeight: 1.4 }}>
+                ⚠ The selected dates fall on Sunday only. Sundays are not counted as leave days.
+              </p>
+            )}
           </div>
 
           <div className="form-group">
@@ -210,8 +227,8 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
             <button 
               type="submit" 
               className="btn-primary" 
-              style={{ flex: 1.5, opacity: (wellnessWarning || isInvalidRange) ? 0.5 : 1, cursor: (wellnessWarning || isInvalidRange) ? 'not-allowed' : 'pointer' }}
-              disabled={wellnessWarning || isInvalidRange}
+              style={{ flex: 1.5, opacity: blockSubmit ? 0.5 : 1, cursor: blockSubmit ? 'not-allowed' : 'pointer' }}
+              disabled={blockSubmit}
             >
               <Calendar size={18} />
               Submit Application
