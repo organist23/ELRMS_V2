@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Database, Monitor, Download, Loader2, CheckCircle2, AlertTriangle, Server } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
+import api from '../utils/api';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('database');
@@ -14,8 +15,10 @@ const Settings = () => {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/ping');
-      const data = await res.json();
+      // Same handling as the former raw fetch: any HTTP status is accepted and the body is parsed as JSON
+      // (so a 500 from the server still shows its message); network errors and non-JSON bodies land in catch.
+      const { data: text } = await api.get('/ping', { responseType: 'text', transformResponse: [(d) => d], validateStatus: () => true });
+      const data = JSON.parse(text);
       setSystemStatus(data);
     } catch (err) {
       setSystemStatus({ success: false, message: 'Server unreachable' });
