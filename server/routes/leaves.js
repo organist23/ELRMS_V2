@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { balanceSnapshot, insertLedgerEntry } = require('../helpers/ledger');
 const { isClosedSql, assertMonthOpen } = require('../helpers/closedMonth');
 const { LEAVE_TYPES } = require('../constants');
 
@@ -135,10 +136,14 @@ router.post('/api/leaves/approve', async (req, res) => {
         const desc = `Leave Approved: ${app_data.leave_type} (${app_data.inclusive_dates}). Status: ${fmt(with_pay)} Paid, ${fmt(without_pay)} Without Pay.`;
         const leave_type_short = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
 
-        await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [app_data.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'LEAVE', leave_type_short, with_pay, without_pay, app_data.reason, app_data.inclusive_dates]
-        );
+        await insertLedgerEntry(connection, app_data.employee_id, desc, balanceSnapshot(b), {
+            transaction_type: 'LEAVE',
+            leave_type: leave_type_short,
+            deducted_with_pay: with_pay,
+            deducted_without_pay: without_pay,
+            remarks: app_data.reason,
+            period_text: app_data.inclusive_dates,
+        });
 
         await connection.commit();
         res.json({ success: true });
@@ -192,10 +197,12 @@ router.post('/api/leaves/undo', async (req, res) => {
         const leaveTypeCode = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
         const restoredDays = parseFloat(app_data.with_pay);
 
-        await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'UNDO', leaveTypeCode, restoredDays, app_data.inclusive_dates || null]
-        );
+        await insertLedgerEntry(connection, app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, balanceSnapshot(b), {
+            transaction_type: 'UNDO',
+            leave_type: leaveTypeCode,
+            deducted_with_pay: restoredDays,
+            period_text: app_data.inclusive_dates || null,
+        });
 
         await connection.commit();
         res.json({ success: true });
@@ -242,35 +249,23 @@ router.post('/api/leaves/reject', async (req, res) => {
             
             // ENTRY A: Updates the VL Card (The "Credit")
             // Routes to VL Card via leave_type='VL'. Shows as "Earned" via balance diff.
-            await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                    app_data.employee_id,
-                    'VL Transfer (Force Leave Rejected)',
-                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women,
-                    'TRANSFER',
-                    'VL',
-                    transferDays,
-                    'Exigency of Service: Force Leave transferred to VL',
-                    app_data.inclusive_dates || null
-                ]
-            );
+            await insertLedgerEntry(connection, app_data.employee_id, 'VL Transfer (Force Leave Rejected)', balanceSnapshot(b), {
+                transaction_type: 'TRANSFER',
+                leave_type: 'VL',
+                earned: transferDays,
+                remarks: 'Exigency of Service: Force Leave transferred to VL',
+                period_text: app_data.inclusive_dates || null,
+            });
 
             // ENTRY B: Updates the Privilege Card (The "Debit")
             // Routes to Privilege Card via leave_type='Force Leave'. Shows as "Absence w/ Pay" via balance diff.
-            await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                    app_data.employee_id,
-                    'VL Transfer (Force Leave Rejected)',
-                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women,
-                    'TRANSFER',
-                    LEAVE_TYPES.FORCE,
-                    0,
-                    'Exigency of Service: Transferred to VL',
-                    app_data.inclusive_dates || null
-                ]
-            );
+            await insertLedgerEntry(connection, app_data.employee_id, 'VL Transfer (Force Leave Rejected)', balanceSnapshot(b), {
+                transaction_type: 'TRANSFER',
+                leave_type: LEAVE_TYPES.FORCE,
+                earned: 0,
+                remarks: 'Exigency of Service: Transferred to VL',
+                period_text: app_data.inclusive_dates || null,
+            });
         } else {
             // === STANDARD REJECTION: No balance changes, simple status update ===
             await connection.execute('UPDATE leave_applications SET status = "Rejected" WHERE id = ?', [application_id]);

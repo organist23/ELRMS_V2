@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { balanceSnapshot, insertLedgerEntry } = require('../helpers/ledger');
 
 const router = express.Router();
 
@@ -68,10 +69,11 @@ router.post('/api/employees', async (req, res) => {
             [id, initial_vl || 0, initial_sl || 0, initial_vl || 0, initial_sl || 0, initial_vl || 0, initial_sl || 0, 30, sex === 'Male' ? 7 : 0]
         );
 
-        await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, 'First Registration: Initial Balance Set', initial_vl || 0, initial_sl || 0, 3, 5, 5, 7, 105, 7, 30, 'REGISTRATION', 'Initial Balance', new Date().getFullYear()]
-        );
+        await insertLedgerEntry(connection, id, 'First Registration: Initial Balance Set', { vl_bal: initial_vl || 0, sl_bal: initial_sl || 0, sp_bal: 3, fl_bal: 5, wl_bal: 5, spl_bal: 7, mat_bal: 105, pat_bal: 7, sbw_bal: 30 }, {
+            transaction_type: 'REGISTRATION',
+            remarks: 'Initial Balance',
+            period_text: new Date().getFullYear(),
+        });
 
         await connection.commit();
         res.json({ success: true, message: 'Employee registered' });
@@ -124,10 +126,10 @@ router.put('/api/employees/:id', async (req, res) => {
             if (Math.abs(parseFloat(old_sl) - parseFloat(sick_leave)) > 0.0001) updatedTypes.push('SL');
             const leaveTypeLabel = updatedTypes.join('/') || 'ADJUSTMENT';
 
-            await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [req.params.id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'MANUAL', leaveTypeLabel]
-            );
+            await insertLedgerEntry(connection, req.params.id, desc, balanceSnapshot(b), {
+                transaction_type: 'MANUAL',
+                leave_type: leaveTypeLabel,
+            });
         }
 
         await connection.commit();
@@ -153,10 +155,7 @@ router.delete('/api/employees/:id', async (req, res) => {
         const [b_rows] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [req.params.id]);
         const b = b_rows[0];
         
-        await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [req.params.id, 'Account Archived: Employee moved to inactive records.', b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women]
-        );
+        await insertLedgerEntry(connection, req.params.id, 'Account Archived: Employee moved to inactive records.', balanceSnapshot(b));
 
         await connection.commit();
         res.json({ success: true, message: 'Employee archived successfully' });

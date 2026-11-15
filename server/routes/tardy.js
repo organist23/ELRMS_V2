@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { balanceSnapshot, insertLedgerEntry } = require('../helpers/ledger');
 const { isClosedSql, assertMonthOpen } = require('../helpers/closedMonth');
 
 const router = express.Router();
@@ -67,10 +68,14 @@ router.post('/api/tardy/deduct', async (req, res) => {
         const b = newBal[0];
         const desc = `Tardy Deduction: ${days} days deducted from VL. Period: ${period_text}.`;
 
-        await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'TARDY', 'VL', with_pay, without_pay, remarks || null, period_text]
-        );
+        await insertLedgerEntry(connection, employee_id, desc, balanceSnapshot(b), {
+            transaction_type: 'TARDY',
+            leave_type: 'VL',
+            deducted_with_pay: with_pay,
+            deducted_without_pay: without_pay,
+            remarks: remarks || null,
+            period_text: period_text,
+        });
 
         await connection.commit();
         res.json({ success: true, message: `Deducted ${days} days from VL successfully.` });
@@ -120,10 +125,13 @@ router.post('/api/tardy/undo', async (req, res) => {
         const b = newBal[0];
         const desc = `UNDO TARDY: Restored ${days} days to VL. Period: ${tardy.period_text}.`;
 
-        await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [tardy.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'UNDO', 'VL', days, tardy.remarks || null, tardy.period_text]
-        );
+        await insertLedgerEntry(connection, tardy.employee_id, desc, balanceSnapshot(b), {
+            transaction_type: 'UNDO',
+            leave_type: 'VL',
+            deducted_with_pay: days,
+            remarks: tardy.remarks || null,
+            period_text: tardy.period_text,
+        });
 
         await connection.commit();
         res.json({ success: true, message: 'Tardy deduction undone successfully.' });
@@ -183,10 +191,14 @@ router.post('/api/tardy/redo', async (req, res) => {
         const b = newBal[0];
         const desc = `REDO TARDY: Re-deducted ${days} days from VL. Period: ${tardy.period_text}.`;
 
-        await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [tardy.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'TARDY', 'VL', with_pay, without_pay, tardy.remarks || null, tardy.period_text]
-        );
+        await insertLedgerEntry(connection, tardy.employee_id, desc, balanceSnapshot(b), {
+            transaction_type: 'TARDY',
+            leave_type: 'VL',
+            deducted_with_pay: with_pay,
+            deducted_without_pay: without_pay,
+            remarks: tardy.remarks || null,
+            period_text: tardy.period_text,
+        });
 
         await connection.commit();
         res.json({ success: true, message: 'Tardy deduction re-applied successfully.' });
