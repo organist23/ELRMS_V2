@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { MONTH_NAMES } = require('../constants');
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ router.post('/api/accrual/generate', async (req, res) => {
         `);
 
         if (balances.length > 0) {
-            const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+            const monthNames = MONTH_NAMES;
             const periodText = `AS OF ${monthNames[month - 1]}`;
             
             const ledgerRows = balances.map(b => [

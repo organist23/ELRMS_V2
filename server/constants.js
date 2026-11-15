@@ -10,4 +10,6 @@ const LEAVE_TYPES = {
     SBW: 'Special Benefits for Women'
 };
 
-module.exports = { SALT_ROUNDS, LEAVE_TYPES };
+const MONTH_NAMES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+module.exports = { SALT_ROUNDS, LEAVE_TYPES, MONTH_NAMES };

@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { LEAVE_TYPES } = require('../constants');
+const { LEAVE_TYPES, MONTH_NAMES } = require('../constants');
 
 const router = express.Router();
 
@@ -115,7 +115,7 @@ router.get('/api/employees/:id/leave-card/:year', async (req, res) => {
         };
 
         const vlSlRows = vlSlEntries.map((entry) => {
-            const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+            const monthNames = MONTH_NAMES;
             const actionDate = new Date(entry.action_date);
             const day = actionDate.getDate();
             const month = monthNames[actionDate.getMonth()];
@@ -210,7 +210,7 @@ router.get('/api/employees/:id/leave-card/:year', async (req, res) => {
 
         // C. Process Privilege Rows (NEW)
         const privilegeRows = privilegeEntries.map((entry, idx) => {
-            const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+            const monthNames = MONTH_NAMES;
             const actionDate = new Date(entry.action_date);
             const day = actionDate.getDate();
             const month = monthNames[actionDate.getMonth()];

@@ -3,6 +3,7 @@ const db = require('../db');
 const { balanceSnapshot, insertLedgerEntry } = require('../helpers/ledger');
 const { isClosedSql, assertMonthOpen } = require('../helpers/closedMonth');
 const { LEAVE_TYPES } = require('../constants');
+const { LEAVE_BALANCE_FIELD, ledgerLeaveCode } = require('../helpers/leaveTypes');
 
 const router = express.Router();
 
@@ -49,18 +50,8 @@ router.post('/api/leaves/apply', async (req, res) => {
             [LEAVE_TYPES.SBW]: 30
         };
 
-        const field_map = {
-            [LEAVE_TYPES.SPECIAL]: 'special_leave',
-            [LEAVE_TYPES.FORCE]: 'force_leave',
-            [LEAVE_TYPES.WELLNESS]: 'wellness_leave',
-            [LEAVE_TYPES.SOLO_PARENT]: 'solo_parent_leave',
-            [LEAVE_TYPES.MATERNITY]: 'maternity_leave',
-            [LEAVE_TYPES.PATERNITY]: 'paternity_leave',
-            [LEAVE_TYPES.SBW]: 'special_benefits_for_women'
-        };
-
         if (limits[leave_type]) {
-            const field = field_map[leave_type];
+            const field = LEAVE_BALANCE_FIELD[leave_type];
             const current_bal = parseFloat(balance[field]);
             if (parseFloat(num_days) > current_bal) {
                  return res.status(400).json({ error: `Not enough credits in ${leave_type}. Remaining: ${current_bal.toFixed(3)}` });
@@ -90,18 +81,7 @@ router.post('/api/leaves/approve', async (req, res) => {
         // Check if the leave application belongs to a closed month (accrual already generated)
         await assertMonthOpen(connection, app_data.applied_at, 'Approve', 'leave application');
 
-        const field_map = {
-            'Vacation Leave': 'vacation_leave',
-            'Sick Leave': 'sick_leave',
-            'Special Leave': 'special_leave',
-            'Force Leave': 'force_leave',
-            'Wellness Leave': 'wellness_leave',
-            'Solo Parent Leave': 'solo_parent_leave',
-            'Maternity Leave': 'maternity_leave',
-            'Paternity Leave': 'paternity_leave',
-            'Special Benefits for Women': 'special_benefits_for_women'
-        };
-        const field = field_map[app_data.leave_type];
+        const field = LEAVE_BALANCE_FIELD[app_data.leave_type];
         
         // --- Split Pay Math ---
         // ADDED 'FOR UPDATE' TO PREVENT RACE CONDITIONS
@@ -110,6 +90,7 @@ router.post('/api/leaves/approve', async (req, res) => {
         const current_val = parseFloat(bal[field] || 0);
         const requested_days = parseFloat(app_data.num_days || 0);
 
+        let with_pay, without_pay;
         if (requested_days > current_val) {
             with_pay = current_val;
             without_pay = requested_days - current_val;
@@ -134,7 +115,7 @@ router.post('/api/leaves/approve', async (req, res) => {
 
         const fmt = (n) => parseFloat(parseFloat(n).toFixed(3)).toString();
         const desc = `Leave Approved: ${app_data.leave_type} (${app_data.inclusive_dates}). Status: ${fmt(with_pay)} Paid, ${fmt(without_pay)} Without Pay.`;
-        const leave_type_short = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
+        const leave_type_short = ledgerLeaveCode(app_data.leave_type);
 
         await insertLedgerEntry(connection, app_data.employee_id, desc, balanceSnapshot(b), {
             transaction_type: 'LEAVE',
@@ -169,18 +150,7 @@ router.post('/api/leaves/undo', async (req, res) => {
         // Check if the leave application belongs to a closed month (accrual already generated)
         await assertMonthOpen(connection, app_data.applied_at, 'Undo', 'leave application');
 
-        const field_map = {
-            'Vacation Leave': 'vacation_leave',
-            'Sick Leave': 'sick_leave',
-            'Special Leave': 'special_leave',
-            'Force Leave': 'force_leave',
-            'Wellness Leave': 'wellness_leave',
-            'Solo Parent Leave': 'solo_parent_leave',
-            'Maternity Leave': 'maternity_leave',
-            'Paternity Leave': 'paternity_leave',
-            'Special Benefits for Women': 'special_benefits_for_women'
-        };
-        const field = field_map[app_data.leave_type];
+        const field = LEAVE_BALANCE_FIELD[app_data.leave_type];
 
         // Reverse the math
         await connection.execute(
@@ -194,7 +164,7 @@ router.post('/api/leaves/undo', async (req, res) => {
         const b = new_bal[0];
 
         // Build short leave type code consistently with the Approval logic
-        const leaveTypeCode = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
+        const leaveTypeCode = ledgerLeaveCode(app_data.leave_type);
         const restoredDays = parseFloat(app_data.with_pay);
 
         await insertLedgerEntry(connection, app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, balanceSnapshot(b), {
