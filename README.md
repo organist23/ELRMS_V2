@@ -140,9 +140,7 @@ ELRMS_Final/
 │   ├── index.js               # Express API server (all routes)
 │   ├── db.js                  # MySQL connection pool
 │   ├── schema.sql             # Full database schema
-│   ├── .env                   # Environment variables (DB credentials)
-│   ├── ledger_desc.json       # Ledger transaction description templates
-│   └── archive_desc.json      # Archive metadata
+│   └── .env                   # Environment variables (DB credentials)
 └── client/
     ├── index.html
     ├── vite.config.js
