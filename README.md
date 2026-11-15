@@ -137,12 +137,21 @@ ELRMS_Final/
 ├── build/
 │   └── icon.ico               # App icon for Windows installer
 ├── server/
-│   ├── index.js               # Express API server (all routes)
+│   ├── index.js               # Express app setup: middleware, startup, route mounting
+│   ├── constants.js           # Shared constants (leave types, bcrypt rounds)
+│   ├── routes/                # One file per feature, same /api paths as before
+│   │   ├── auth.js            # Login, password reset
+│   │   ├── employees.js       # Employee CRUD, yearly history
+│   │   ├── leaves.js          # Leave apply/approve/undo/reject, queue, history
+│   │   ├── tardy.js           # Tardy deduct/undo/redo
+│   │   ├── accrual.js         # Monthly credits, yearly rollover, system audit
+│   │   ├── ledger.js          # Ledger history
+│   │   ├── leaveCard.js       # Leave card report data
+│   │   ├── stats.js           # Dashboard counts
+│   │   └── system.js          # Connection test, database backup
 │   ├── db.js                  # MySQL connection pool
 │   ├── schema.sql             # Full database schema
-│   ├── .env                   # Environment variables (DB credentials)
-│   ├── ledger_desc.json       # Ledger transaction description templates
-│   └── archive_desc.json      # Archive metadata
+│   └── .env                   # Environment variables (DB credentials)
 └── client/
     ├── index.html
     ├── vite.config.js

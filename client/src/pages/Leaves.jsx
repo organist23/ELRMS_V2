@@ -6,7 +6,7 @@ import { useNotification } from '../context/NotificationContext';
 
 const Leaves = () => {
   const location = useLocation(); // Used to detect page navigation and re-sync is_closed state
-  const { showToast, confirm, showUndoToast } = useNotification();
+  const { showToast, confirm } = useNotification();
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [historyLeaves, setHistoryLeaves] = useState([]);
   const [loading, setLoading] = useState(true);

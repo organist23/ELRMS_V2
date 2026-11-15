@@ -106,7 +106,6 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
             </div>
 
             {/* Editable Balances */}
-            {/* Editable Balances */}
             <div style={{ gridColumn: 'span 3', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
                <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                  Manual Balance Adjustment (VL/SL Only)

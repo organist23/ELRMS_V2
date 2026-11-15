@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
-import { Users, FileClock, Activity, AlertCircle, Search, RefreshCw, FileText } from 'lucide-react';
+import { Users, FileClock, AlertCircle, RefreshCw, FileText } from 'lucide-react';
 
 const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
