@@ -139,6 +139,7 @@ CREATE TABLE tardy_deductions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id VARCHAR(50) NOT NULL,
     equivalent_day DECIMAL(10,3) NOT NULL,
+    deducted_with_pay DECIMAL(10,3) DEFAULT NULL, -- part actually taken from VL (rest was without pay); used by Undo
     remarks TEXT,
     period_text VARCHAR(100) NULL,
     deduction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
