@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, Clock, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
+import MonthlyCreditsPanel from '../components/employees/MonthlyCreditsPanel';
+import EmployeeList from '../components/employees/EmployeeList';
+import EmployeeDetails from '../components/employees/EmployeeDetails';
 import RegisterEmployeeModal from '../components/modals/RegisterEmployeeModal';
 import EditEmployeeModal from '../components/modals/EditEmployeeModal';
 import EncodeLeaveModal from '../components/modals/EncodeLeaveModal';
@@ -166,344 +169,43 @@ const Employees = () => {
       </header>
 
       {/* Accrual Control Box */}
-      <div className="premium-card mb-40" style={{ background: 'var(--accent-light)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
-        {/* Label */}
-        <div className="flex items-center gap-14" style={{ flexShrink: 0 }}>
-          <Send size={20} color="var(--accent)" />
-          <span className="font-bold" style={{ color: 'var(--accent)', fontSize: '1rem', whiteSpace: 'nowrap' }}>Generate Monthly Credits (1.25)</span>
-        </div>
-
-        {/* Inputs + Button */}
-        <div className="flex items-center gap-12" style={{ flexShrink: 0 }}>
-
-          {/* Month Input */}
-          <div className="flex flex-col" style={{ gap: '4px' }}>
-            <span className="text-small font-bold" style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Month</span>
-            <input
-              type="number"
-              className="input-field"
-              style={{ width: '72px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)', cursor: 'default', background: 'white' }}
-              value={accrualMonth}
-              readOnly
-            />
-          </div>
-
-          <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: '1.1rem', paddingTop: '18px' }}>/</span>
-
-          {/* Year Input */}
-          <div className="flex flex-col" style={{ gap: '4px' }}>
-            <span className="text-small font-bold" style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Year</span>
-            <input
-              type="number"
-              className="input-field"
-              style={{ width: '96px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)', cursor: 'default', background: 'white' }}
-              value={accrualYear}
-              readOnly
-            />
-          </div>
-
-          <button
-            className="btn-primary"
-            style={{
-              height: '44px',
-              padding: '0 28px',
-              whiteSpace: 'nowrap',
-              alignSelf: 'flex-end',
-              opacity: (isGenerating || audit?.pendingRollover) ? 0.5 : 1,
-              cursor: (isGenerating || audit?.pendingRollover) ? 'not-allowed' : 'pointer'
-            }}
-            onClick={handleGenerateCredits}
-            disabled={isGenerating || audit?.pendingRollover}
-          >
-            {audit?.pendingRollover ? 'Rollover Required First' : (isGenerating ? 'Generating...' : 'Confirm Generate')}
-          </button>
-        </div>
-      </div>
+      <MonthlyCreditsPanel
+        accrualMonth={accrualMonth}
+        accrualYear={accrualYear}
+        isGenerating={isGenerating}
+        audit={audit}
+        handleGenerateCredits={handleGenerateCredits}
+      />
 
 
       <div className="employee-layout-grid">
         {/* Left Side: List */}
-        <div className="premium-card">
-          <div className="form-group mb-24">
-            <div style={{ position: 'relative' }}>
-              <Search size={18} className="search-icon" />
-              <input
-                type="text"
-                className="input-field"
-                style={{ paddingLeft: '44px', paddingRight: search ? '40px' : '16px' }}
-                placeholder="Search by ID, Name, Position, Office, Status..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-              {search && (
-                <button
-                  type="button"
-                  className="search-clear-btn"
-                  onClick={() => setSearch('')}
-                  title="Clear search"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="data-table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>EID</th>
-                  <th>Full Name</th>
-                  <th>Position</th>
-                  <th>Office</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-light)' }}>
-                      <div className="flex flex-col items-center gap-12">
-                        <Users size={32} style={{ opacity: 0.2 }} />
-                        <span>No employees found {debouncedSearch ? `matching "${debouncedSearch}"` : ''}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map(emp => (
-                    <tr
-                      key={emp.id}
-                      onClick={() => setSelectedEmp(emp)}
-                      className="clickable-row"
-                      style={{ background: selectedEmp?.id === emp.id ? '#e2e8f0' : '' }}
-                    >
-                      <td className="font-bold text-small" style={{ color: 'var(--secondary)' }}>{emp.id}</td>
-                      <td className="font-bold" style={{ fontSize: '0.9375rem' }}>{emp.full_name}</td>
-                      <td className="text-small">{emp.position}</td>
-                      <td className="text-small">{emp.office}</td>
-                      <td><span className="badge badge-approved">{emp.status}</span></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
-            <span className="text-small text-muted font-bold">
-              Showing {employees.length} of {totalEmployees} employees
-            </span>
-            <div className="flex items-center gap-8">
-              <button
-                className="pagination-btn"
-                disabled={currentPage === 1 || loading}
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                title="Previous Page"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              
-              <div className="flex items-center gap-4">
-                {[...Array(totalPages)].map((_, i) => {
-                  const pg = i + 1;
-                  // Only show current, first, last, and neighbors if many pages
-                  if (totalPages > 7) {
-                    if (pg !== 1 && pg !== totalPages && Math.abs(pg - currentPage) > 1) {
-                       if (pg === currentPage - 2 || pg === currentPage + 2) return <span key={pg} style={{ color: 'var(--text-light)', padding: '0 4px' }}>...</span>;
-                       return null;
-                    }
-                  }
-                  
-                  return (
-                    <button
-                      key={pg}
-                      className={`pagination-num ${currentPage === pg ? 'active' : ''}`}
-                      onClick={() => setCurrentPage(pg)}
-                      disabled={loading}
-                    >
-                      {pg}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                className="pagination-btn"
-                disabled={currentPage === totalPages || loading}
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                title="Next Page"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
+        <EmployeeList
+          search={search}
+          setSearch={setSearch}
+          debouncedSearch={debouncedSearch}
+          filtered={filtered}
+          employees={employees}
+          totalEmployees={totalEmployees}
+          selectedEmp={selectedEmp}
+          setSelectedEmp={setSelectedEmp}
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalPages={totalPages}
+          loading={loading}
+        />
 
         {/* Right Side: Details */}
-        <div className="premium-card" style={{ height: 'fit-content', position: 'sticky', top: '40px', padding: '32px' }}>
-          {selectedEmp ? (
-            <div>
-              <div className="flex-between mb-24">
-                <h3 className="font-bold" style={{ fontSize: '1.25rem' }}>Employee Details</h3>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="icon-btn" onClick={() => navigate(`/employees/${selectedEmp.id}/leave-card`)} title="View Leave Card Report" style={{ color: 'var(--accent)', padding: '6px' }}>
-                    <FileText size={26} />
-                  </button>
-                  <button className="icon-btn" onClick={() => setIsEditModalOpen(true)} title="Edit Profile">
-                    <Edit size={14} />
-                  </button>
-                  <button className="icon-btn" style={{ color: '#ef4444' }} onClick={handleDeleteEmployee} title="Archive Employee">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-24">
-                <p className="font-bold" style={{ fontSize: '1.4rem', lineHeight: '1.1', marginBottom: '4px' }}>{selectedEmp.full_name}</p>
-                <p className="text-muted text-small font-bold" style={{ letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '0.7rem' }}>{selectedEmp.id} • {selectedEmp.position}</p>
-
-                <button
-                  className="btn-primary w-full flex items-center justify-center gap-10"
-                  style={{
-                    marginTop: '20px',
-                    padding: '12px',
-                    opacity: audit?.pendingRollover ? 0.6 : 1,
-                    cursor: audit?.pendingRollover ? 'not-allowed' : 'pointer'
-                  }}
-                  onClick={() => !audit?.pendingRollover && setIsLeaveModalOpen(true)}
-                  title={audit?.pendingRollover ? "Rollover Required" : "Encode Leave"}
-                >
-                  {audit?.pendingRollover ? "Rollover Required..." : (
-                    <>
-                      <FilePlus size={18} />
-                      Encode Leave Application
-                    </>
-                  )}
-                </button>
-
-                {/* NEW: Deduct Equivalent Day Button */}
-                <button
-                  className="btn-secondary w-full flex items-center justify-center gap-10"
-                  style={{ marginTop: '10px', padding: '10px' }}
-                  onClick={() => setIsTardyModalOpen(true)}
-                  title="Deduct Equivalent Day from VL"
-                >
-                  <Clock size={16} />
-                  Deduct For Tardy
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 12px', marginBottom: '32px' }}>
-                <div className="info-item">
-                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Civil Status</label>
-                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.civil_status || 'N/A'}</span>
-                </div>
-                <div className="info-item">
-                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>TIN</label>
-                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.tin || 'N/A'}</span>
-                </div>
-                <div className="info-item">
-                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>GSIS Policy</label>
-                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.gsis_policy || 'N/A'}</span>
-                </div>
-                <div className="info-item">
-                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Status</label>
-                  <span className="badge badge-approved" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>{selectedEmp.status}</span>
-                </div>
-                <div className="info-item">
-                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Entrance of Duty</label>
-                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{new Date(selectedEmp.entrance_of_duty).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                </div>
-                <div className="info-item">
-                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Office</label>
-                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.office}</span>
-                </div>
-              </div>
-
-              <h4 className="font-bold mb-12" style={{ fontSize: '0.75rem', color: 'var(--secondary)', borderBottom: '1px solid var(--border)', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Leave Credits</h4>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ background: 'var(--primary-light)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                  <div className="flex-between mb-4">
-                    <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Vacation Leave (VL)</span>
-                    <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--primary)' }}>{parseFloat(selectedEmp.vacation_leave || 0).toFixed(3)}</span>
-                  </div>
-                  <div className="flex-between text-small text-muted font-bold" style={{ fontSize: '0.7rem' }}>
-                    <span style={{ opacity: 0.7 }}>Forwarded: {parseFloat(selectedEmp.forwarded_vl || 0).toFixed(3)}</span>
-                  </div>
-                </div>
-
-                <div style={{ background: 'var(--primary-light)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                  <div className="flex-between mb-4">
-                    <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Sick Leave (SL)</span>
-                    <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--primary)' }}>{parseFloat(selectedEmp.sick_leave || 0).toFixed(3)}</span>
-                  </div>
-                  <div className="flex-between text-small text-muted font-bold" style={{ fontSize: '0.7rem' }}>
-                    <span style={{ opacity: 0.7 }}>Forwarded: {parseFloat(selectedEmp.forwarded_sl || 0).toFixed(3)}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SPECIAL</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_leave || 0)} / 3</div>
-                  </div>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>FORCE</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.force_leave || 0)} / 5</div>
-                  </div>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>WELLNESS</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.wellness_leave || 0)} / 5</div>
-                  </div>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SOLO PARENT</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.solo_parent_leave || 0)} / 7</div>
-                  </div>
-                  {selectedEmp.sex === 'Female' && (
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MATERNITY</div>
-                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.maternity_leave || 0)} / 105</div>
-                    </div>
-                  )}
-                  {selectedEmp.sex === 'Male' && (
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>PATERNITY</div>
-                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.paternity_leave || 0)} / 7</div>
-                    </div>
-                  )}
-                  {selectedEmp.sex === 'Female' && (
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SP. BENEFITS (WOMEN)</div>
-                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_benefits_for_women || 0)} / 30</div>
-                    </div>
-                  )}
-                </div>
-
-                {yearlyHistory.length > 0 && (
-                  <div style={{ marginTop: '32px' }}>
-                    <h4 className="font-bold mb-16" style={{ fontSize: '0.8125rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase' }}>
-                      <RefreshCw size={14} />
-                      Credits Forwarded (Prev. Year)
-                    </h4>
-                    <div className="flex flex-col gap-10">
-                      <div className="flex-between" style={{ padding: '10px 14px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                        <span className="font-bold text-small">{yearlyHistory[0].year}</span>
-                        <span className="text-small text-muted font-bold">VL: {parseFloat(yearlyHistory[0].vl_forwarded).toFixed(3)} | SL: {parseFloat(yearlyHistory[0].sl_forwarded).toFixed(3)}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-              <Users size={48} style={{ margin: '0 auto 16px', display: 'block', opacity: 0.2 }} />
-              <p>Select an employee from the list to view credits and details.</p>
-            </div>
-          )}
-        </div>
+        <EmployeeDetails
+          selectedEmp={selectedEmp}
+          audit={audit}
+          yearlyHistory={yearlyHistory}
+          navigate={navigate}
+          handleDeleteEmployee={handleDeleteEmployee}
+          setIsEditModalOpen={setIsEditModalOpen}
+          setIsLeaveModalOpen={setIsLeaveModalOpen}
+          setIsTardyModalOpen={setIsTardyModalOpen}
+        />
       </div>
 
       {isRegModalOpen && <RegisterEmployeeModal onClose={() => setIsRegModalOpen(false)} onSuccess={fetchEmployees} />}

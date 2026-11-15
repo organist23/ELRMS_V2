@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../utils/api';
 import { ClipboardList, Search, Calendar, Printer, Download, User, X } from 'lucide-react';
 
@@ -67,6 +67,13 @@ const LedgerSummary = () => {
 
   const selectedEmployee = employees.find(e => e.id === selectedEmpId);
 
+  // Picker matches (name or id), used by the dropdown list and its "No employees found" message.
+  // Only computed while the dropdown is open, as before.
+  const matchingEmployees = useMemo(() => (showDropdown ? employees.filter(emp =>
+    emp.full_name.toLowerCase().includes(empSearch.toLowerCase()) ||
+    emp.id.toLowerCase().includes(empSearch.toLowerCase())
+  ) : []), [showDropdown, employees, empSearch]);
+
   return (
     <div className="fade-in">
       <header className="no-print mb-32 flex-between">
@@ -134,11 +141,7 @@ const LedgerSummary = () => {
 
             {showDropdown && (
               <div className="search-results-dropdown shadow-lg">
-                {employees
-                  .filter(emp => 
-                    emp.full_name.toLowerCase().includes(empSearch.toLowerCase()) || 
-                    emp.id.toLowerCase().includes(empSearch.toLowerCase())
-                  )
+                {matchingEmployees
                   .map(emp => (
                     <div 
                       key={emp.id} 
@@ -171,10 +174,7 @@ const LedgerSummary = () => {
                     </div>
                   ))
                 }
-                {employees.filter(emp => 
-                  emp.full_name.toLowerCase().includes(empSearch.toLowerCase()) || 
-                  emp.id.toLowerCase().includes(empSearch.toLowerCase())
-                ).length === 0 && (
+                {matchingEmployees.length === 0 && (
                   <div style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-light)' }}>
                     No employees found
                   </div>

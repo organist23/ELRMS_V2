@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import api from '../../utils/api';
+import { filterDecimalInput } from '../../utils/decimalInput';
+import PrivilegeTiles from '../PrivilegeTiles';
 import { X, Save } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 
@@ -117,12 +119,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                       type="text" 
                       className="input-field" 
                       value={formData.vacation_leave} 
-                      onChange={e => {
-                        const val = e.target.value.replace(/[^0-9.]/g, '');
-                        const parts = val.split('.');
-                        const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
-                        setFormData({...formData, vacation_leave: filtered});
-                      }} 
+                      onChange={e => setFormData({...formData, vacation_leave: filterDecimalInput(e.target.value)})} 
                     />
                   </div>
                   <div className="form-group">
@@ -131,12 +128,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                       type="text" 
                       className="input-field" 
                       value={formData.sick_leave} 
-                      onChange={e => {
-                        const val = e.target.value.replace(/[^0-9.]/g, '');
-                        const parts = val.split('.');
-                        const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
-                        setFormData({...formData, sick_leave: filtered});
-                      }} 
+                      onChange={e => setFormData({...formData, sick_leave: filterDecimalInput(e.target.value)})} 
                     />
                   </div>
                </div>
@@ -144,40 +136,11 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                {/* Read Only Privilege Credits */}
                <h4 className="font-bold mb-12 text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8 }}>View-Only: Privilege Credits (Annual Limits)</h4>
                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
-                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SPECIAL</div>
-                    <div className="font-bold">{Number(employee.special_leave)} / 3</div>
-                  </div>
-                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>FORCE</div>
-                    <div className="font-bold">{Number(employee.force_leave)} / 5</div>
-                  </div>
-                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>WELLNESS</div>
-                    <div className="font-bold">{Number(employee.wellness_leave)} / 5</div>
-                  </div>
-                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SOLO PARENT</div>
-                    <div className="font-bold">{Number(employee.solo_parent_leave)} / 7</div>
-                  </div>
-                  {employee.sex === 'Female' && (
-                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>MATERNITY</div>
-                      <div className="font-bold">{Number(employee.maternity_leave)} / 105</div>
-                    </div>
-                  )}
-                  {employee.sex === 'Male' && (
-                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>PATERNITY</div>
-                      <div className="font-bold">{Number(employee.paternity_leave || 0)} / 7</div>
-                    </div>
-                  )}
-                  {employee.sex === 'Female' && (
-                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SP. BENEFITS (WOMEN)</div>
-                      <div className="font-bold">{Number(employee.special_benefits_for_women || 0)} / 30</div>
-                    </div>
-                  )}
+                  <PrivilegeTiles
+                    employee={employee}
+                    tileStyle={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                    labelStyle={{ fontSize: '0.6rem' }}
+                  />
                </div>
             </div>
           </div>

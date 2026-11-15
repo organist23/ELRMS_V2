@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { History as HistoryIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { History as HistoryIcon, Clock } from 'lucide-react';
+import Pagination from '../components/Pagination';
 
 const Ledger = () => {
   const [history, setHistory] = useState([]);
@@ -174,52 +175,9 @@ const Ledger = () => {
 
         {/* Elegant Pagination Switcher */}
         {totalPages > 1 && (
-          <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
-            <span className="text-small text-muted font-bold">
-              Showing {history.length} of {total} records (Page {page} of {totalPages})
-            </span>
-            <div className="flex items-center gap-8">
-              <button 
-                className="pagination-btn" 
-                disabled={page === 1 || loading}
-                onClick={() => setPage(prev => prev - 1)}
-                title="Previous Page"
-              >
-                <ChevronLeft size={16} />
-              </button>
-
-              <div className="flex items-center gap-4">
-                {[...Array(totalPages)].map((_, i) => {
-                  const pg = i + 1;
-                  if (totalPages > 7) {
-                    if (pg !== 1 && pg !== totalPages && Math.abs(pg - page) > 1) {
-                       if (pg === page - 2 || pg === page + 2) return <span key={pg} style={{ color: 'var(--text-light)', padding: '0 4px' }}>...</span>;
-                       return null;
-                    }
-                  }
-                  return (
-                    <button
-                      key={pg}
-                      className={`pagination-num ${page === pg ? 'active' : ''}`}
-                      onClick={() => setPage(pg)}
-                      disabled={loading}
-                    >
-                      {pg}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button 
-                className="pagination-btn" 
-                disabled={page === totalPages || loading}
-                onClick={() => setPage(prev => prev + 1)}
-                title="Next Page"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} loading={loading} setPage={setPage}>
+            Showing {history.length} of {total} records (Page {page} of {totalPages})
+          </Pagination>
         )}
       </div>
     </div>
