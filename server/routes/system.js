@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { getDbConnectionConfig } = require('../dbConfig');
 const mysqldump = require('mysqldump');
 
 const router = express.Router();
@@ -32,13 +33,7 @@ router.get('/api/ping', async (req, res) => {
 router.get('/api/system/backup', async (req, res) => {
     try {
         const dump = await mysqldump({
-            connection: {
-                host: process.env.DB_HOST || 'localhost',
-                user: process.env.DB_USER || 'root',
-                password: process.env.DB_PASSWORD === undefined ? 'admin' : process.env.DB_PASSWORD,
-                database: process.env.DB_NAME || 'elrms_v2',
-                port: parseInt(process.env.DB_PORT) || 3306
-            },
+            connection: getDbConnectionConfig(),
         });
         
         // Combine schema and data for a full backup

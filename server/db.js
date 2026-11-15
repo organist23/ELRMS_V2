@@ -1,6 +1,7 @@
 const mysql = require('mysql2/promise');
 const path = require('path');
 const fs = require('fs');
+const { getDbConnectionConfig } = require('./dbConfig');
 
 // 1. Detect environment more robustly
 const isPackaged = process.mainModule && process.mainModule.filename ? process.mainModule.filename.includes('app.asar') : false;
@@ -17,11 +18,7 @@ if (fs.existsSync(envPath)) {
 
 // 3. Initialize Pool with robust fallbacks
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD === undefined ? 'admin' : process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'elrms_v2',
+  ...getDbConnectionConfig(),
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
