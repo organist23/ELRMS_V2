@@ -44,24 +44,24 @@ CREATE TABLE leave_balances (
     force_leave DECIMAL(10,3) DEFAULT 5.000,
     wellness_leave DECIMAL(10,3) DEFAULT 5.000,
     solo_parent_leave DECIMAL(10,3) DEFAULT 7.000,
-    maternity_leave DECIMAL(10,3) DEFAULT 105.000,
-    paternity_leave DECIMAL(10,3) DEFAULT 7.000,
-    special_benefits_for_women DECIMAL(10,3) DEFAULT 30.000,
     -- Initial balance fields for newly registered
     bbw_vl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward VL
     bbw_sl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward SL
-    forwarded_vl DECIMAL(10,3) DEFAULT 0.000,
-    forwarded_sl DECIMAL(10,3) DEFAULT 0.000,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     undertime_w_pay DECIMAL(10,3) DEFAULT 0.000,
     leave_w_o_pay DECIMAL(10,3) DEFAULT 0.000,
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    forwarded_vl DECIMAL(10,3) DEFAULT 0.000,
+    forwarded_sl DECIMAL(10,3) DEFAULT 0.000,
+    maternity_leave DECIMAL(10,3) DEFAULT 105.000,
+    paternity_leave DECIMAL(10,3) DEFAULT 7.000,
+    special_benefits_for_women DECIMAL(10,3) DEFAULT 30.000,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 4. Yearly Action Logs (To prevent duplicate rollovers)
 CREATE TABLE yearly_action_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    action_type VARCHAR(50) NOT NULL, -- 'ROLLOVER', 'PRIVILEGE_RESET'
+    action_type ENUM('ROLLOVER', 'PRIVILEGE_RESET') NOT NULL,
     year INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_yearly_action (action_type, year)
@@ -84,8 +84,8 @@ CREATE TABLE leave_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id VARCHAR(50) NOT NULL,
     leave_type VARCHAR(100) NOT NULL,
-    date_from DATE NOT NULL,
-    date_to DATE NOT NULL,
+    date_from DATE NULL,
+    date_to DATE NULL,
     num_days DECIMAL(10,3) NOT NULL,
     inclusive_dates TEXT,
     reason TEXT,
@@ -110,17 +110,18 @@ CREATE TABLE ledger (
     fl_bal DECIMAL(10,3),
     wl_bal DECIMAL(10,3),
     spl_bal DECIMAL(10,3),
-    mat_bal DECIMAL(10,3),
-    pat_bal DECIMAL(10,3),
-    sbw_bal DECIMAL(10,3),
     -- Metadata for Reports
     transaction_type VARCHAR(50), -- 'LEAVE', 'CREDIT', 'TARDY', 'UNDO', 'MANUAL', 'ROLLOVER'
-    leave_type VARCHAR(100), -- 'VL', 'SL', 'Special Leave', etc.
+    leave_type VARCHAR(50), -- 'VL', 'SL', 'Special Leave', etc.
     earned DECIMAL(10,3) DEFAULT 0.000,
     deducted_with_pay DECIMAL(10,3) DEFAULT 0.000,
     deducted_without_pay DECIMAL(10,3) DEFAULT 0.000,
     remarks TEXT,
     period_text VARCHAR(255),
+    -- Snapshots added later (columns appended at the end in the real database)
+    mat_bal DECIMAL(10,3),
+    pat_bal DECIMAL(10,3) DEFAULT 7.000,
+    sbw_bal DECIMAL(10,3) DEFAULT 30.000,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -138,9 +139,9 @@ CREATE TABLE tardy_deductions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id VARCHAR(50) NOT NULL,
     equivalent_day DECIMAL(10,3) NOT NULL,
-    period_text VARCHAR(255) NOT NULL,
     remarks TEXT,
-    status ENUM('Deducted', 'Undone') DEFAULT 'Deducted',
-    deduction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    period_text VARCHAR(100) NULL,
+    deduction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'DEDUCTED', -- the app always writes 'Deducted' or 'Undone'
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
