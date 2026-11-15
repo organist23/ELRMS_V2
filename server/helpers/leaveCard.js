@@ -37,14 +37,22 @@ function isPrivilegeEntry(entry) {
 //   2. this year's first REGISTRATION ledger row
 //   3. this year's first ROLLOVER ledger row
 //   4. the employee's base balances (bbw_vl / bbw_sl)
-// `lookup` provides the three queries as async functions (archive, registration, rollover);
-// they are called only when the earlier cases did not apply.
+// `lookup` provides the three queries as async functions (archive, registration, rollover).
+// They are independent, so all three start at once; the results (and any query error) are still
+// used strictly in priority order, so a later lookup can never override or fail an earlier case.
 // cutoffLedgerId: ledger rows with id <= this are already part of the starting balance.
 async function computeStartingBalance(employee, year, lookup) {
     const prevYear = parseInt(year) - 1;
     const regYear = new Date(employee.created_at).getFullYear();
 
-    const archiveRows = await lookup.archive(prevYear);
+    // settle() keeps a failed lookup from becoming an unhandled rejection when its case is not reached.
+    const settle = (promise) => promise.then(value => ({ value }), error => ({ error }));
+    const unwrap = async (settled) => { const r = await settled; if ('error' in r) throw r.error; return r.value; };
+    const archiveLookup = settle(lookup.archive(prevYear));
+    const registrationLookup = settle(lookup.registration());
+    const rolloverLookup = settle(lookup.rollover());
+
+    const archiveRows = await unwrap(archiveLookup);
 
     let startingBalance = { vl: 0, sl: 0 };
     let cutoffLedgerId = -1;
@@ -55,14 +63,14 @@ async function computeStartingBalance(employee, year, lookup) {
         startingBalance.sl = parseFloat(archiveRows[0].sl_forwarded);
         cutoffLedgerId = -1; // Archive is from prev year, so all ledger entries this year are relevant
     } else {
-        const regRows = await lookup.registration();
+        const regRows = await unwrap(registrationLookup);
         if (regRows.length > 0) {
             // Case 2: Newly registered employee - start from their initial balance
             startingBalance.vl = parseFloat(regRows[0].vl_bal);
             startingBalance.sl = parseFloat(regRows[0].sl_bal);
             cutoffLedgerId = regRows[0].id;
         } else {
-            const rolloverRows = await lookup.rollover();
+            const rolloverRows = await unwrap(rolloverLookup);
             if (rolloverRows.length > 0) {
                 // Case 3: ROLLOVER entry for this year (fallback for missing archive)
                 startingBalance.vl = parseFloat(rolloverRows[0].vl_bal);
