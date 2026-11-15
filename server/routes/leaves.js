@@ -35,6 +35,15 @@ router.post('/api/leaves/apply', async (req, res) => {
             return res.status(400).json({ error: 'Invalid Date Range: "Date To" cannot be earlier than "Date From".' });
         }
 
+        // Only real leave types, and a positive number of days (0.5 for a half day is fine)
+        if (!Object.prototype.hasOwnProperty.call(LEAVE_BALANCE_FIELD, leave_type)) {
+            return res.status(400).json({ error: `Unknown leave type: ${leave_type}` });
+        }
+        const days = Number(num_days);
+        if (num_days === '' || num_days === null || num_days === undefined || !Number.isFinite(days) || days <= 0) {
+            return res.status(400).json({ error: 'Number of days must be greater than 0.' });
+        }
+
         // Validation check for privileges
         const [balanceRows] = await db.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [employee_id]);
         if (balanceRows.length === 0) return res.status(404).json({ error: 'Employee balance not found' });
