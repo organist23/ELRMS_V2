@@ -4,6 +4,7 @@ import { filterDecimalInput } from '../../utils/decimalInput';
 import PrivilegeTiles from '../PrivilegeTiles';
 import { X, Save } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import { toDateInputValue } from '../../utils/dateInput';
 
 const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
   const { showToast } = useNotification();
@@ -13,7 +14,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
     civil_status: employee.civil_status || 'SINGLE',
     gsis_policy: employee.gsis_policy || '',
     position: employee.position,
-    entrance_of_duty: employee.entrance_of_duty ? new Date(employee.entrance_of_duty).toISOString().split('T')[0] : '',
+    entrance_of_duty: toDateInputValue(employee.entrance_of_duty),
     tin: employee.tin || '',
     status: employee.status || 'PERMANENT',
     office: employee.office || '',
