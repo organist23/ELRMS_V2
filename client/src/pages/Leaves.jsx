@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../utils/api';
-import { CheckCircle, XCircle, Clock, Info, RotateCcw, RotateCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Info, RotateCcw, RotateCw, Search } from 'lucide-react';
+import Pagination from '../components/Pagination';
 import { useNotification } from '../context/NotificationContext';
 
 const Leaves = () => {
@@ -332,52 +333,9 @@ const Leaves = () => {
 
             {/* History Pagination Controls */}
             {totalHistoryPages > 1 && (
-              <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
-                <span className="text-small text-muted font-bold">
-                  Showing {filteredHistory.length} of {totalHistoryRecords} records
-                </span>
-                <div className="flex items-center gap-8">
-                  <button 
-                    className="pagination-btn" 
-                    disabled={historyPage === 1 || loading}
-                    onClick={() => setHistoryPage(prev => prev - 1)}
-                    title="Previous Page"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-
-                  <div className="flex items-center gap-4">
-                    {[...Array(totalHistoryPages)].map((_, i) => {
-                      const pg = i + 1;
-                      if (totalHistoryPages > 7) {
-                        if (pg !== 1 && pg !== totalHistoryPages && Math.abs(pg - historyPage) > 1) {
-                           if (pg === historyPage - 2 || pg === historyPage + 2) return <span key={pg} style={{ color: 'var(--text-light)', padding: '0 4px' }}>...</span>;
-                           return null;
-                        }
-                      }
-                      return (
-                        <button
-                          key={pg}
-                          className={`pagination-num ${historyPage === pg ? 'active' : ''}`}
-                          onClick={() => setHistoryPage(pg)}
-                          disabled={loading}
-                        >
-                          {pg}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button 
-                    className="pagination-btn" 
-                    disabled={historyPage === totalHistoryPages || loading}
-                    onClick={() => setHistoryPage(prev => prev + 1)}
-                    title="Next Page"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
+              <Pagination page={historyPage} totalPages={totalHistoryPages} loading={loading} setPage={setHistoryPage}>
+                Showing {filteredHistory.length} of {totalHistoryRecords} records
+              </Pagination>
             )}
           </>
         ) : (
@@ -495,52 +453,9 @@ const Leaves = () => {
 
             {/* Tardy Pagination Controls */}
             {totalTardyPages > 1 && (
-              <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
-                <span className="text-small text-muted font-bold">
-                  Showing {paginatedTardy.length} of {filteredTardy.length} tardy deductions
-                </span>
-                <div className="flex items-center gap-8">
-                  <button 
-                    className="pagination-btn" 
-                    disabled={tardyPage === 1 || loading}
-                    onClick={() => setTardyPage(prev => prev - 1)}
-                    title="Previous Page"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-
-                  <div className="flex items-center gap-4">
-                    {[...Array(totalTardyPages)].map((_, i) => {
-                      const pg = i + 1;
-                      if (totalTardyPages > 7) {
-                        if (pg !== 1 && pg !== totalTardyPages && Math.abs(pg - tardyPage) > 1) {
-                           if (pg === tardyPage - 2 || pg === tardyPage + 2) return <span key={pg} style={{ color: 'var(--text-light)', padding: '0 4px' }}>...</span>;
-                           return null;
-                        }
-                      }
-                      return (
-                        <button
-                          key={pg}
-                          className={`pagination-num ${tardyPage === pg ? 'active' : ''}`}
-                          onClick={() => setTardyPage(pg)}
-                          disabled={loading}
-                        >
-                          {pg}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button 
-                    className="pagination-btn" 
-                    disabled={tardyPage === totalTardyPages || loading}
-                    onClick={() => setTardyPage(prev => prev + 1)}
-                    title="Next Page"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
+              <Pagination page={tardyPage} totalPages={totalTardyPages} loading={loading} setPage={setTardyPage}>
+                Showing {paginatedTardy.length} of {filteredTardy.length} tardy deductions
+              </Pagination>
             )}
           </>
         ) : (

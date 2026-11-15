@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, Clock, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, Clock, X } from 'lucide-react';
+import Pagination from '../components/Pagination';
 import RegisterEmployeeModal from '../components/modals/RegisterEmployeeModal';
 import EditEmployeeModal from '../components/modals/EditEmployeeModal';
 import EncodeLeaveModal from '../components/modals/EncodeLeaveModal';
@@ -290,54 +291,9 @@ const Employees = () => {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
-            <span className="text-small text-muted font-bold">
-              Showing {employees.length} of {totalEmployees} employees
-            </span>
-            <div className="flex items-center gap-8">
-              <button
-                className="pagination-btn"
-                disabled={currentPage === 1 || loading}
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                title="Previous Page"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              
-              <div className="flex items-center gap-4">
-                {[...Array(totalPages)].map((_, i) => {
-                  const pg = i + 1;
-                  // Only show current, first, last, and neighbors if many pages
-                  if (totalPages > 7) {
-                    if (pg !== 1 && pg !== totalPages && Math.abs(pg - currentPage) > 1) {
-                       if (pg === currentPage - 2 || pg === currentPage + 2) return <span key={pg} style={{ color: 'var(--text-light)', padding: '0 4px' }}>...</span>;
-                       return null;
-                    }
-                  }
-                  
-                  return (
-                    <button
-                      key={pg}
-                      className={`pagination-num ${currentPage === pg ? 'active' : ''}`}
-                      onClick={() => setCurrentPage(pg)}
-                      disabled={loading}
-                    >
-                      {pg}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                className="pagination-btn"
-                disabled={currentPage === totalPages || loading}
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                title="Next Page"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
+          <Pagination page={currentPage} totalPages={totalPages} loading={loading} setPage={setCurrentPage}>
+            Showing {employees.length} of {totalEmployees} employees
+          </Pagination>
         </div>
 
         {/* Right Side: Details */}
