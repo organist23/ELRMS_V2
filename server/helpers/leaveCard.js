@@ -4,6 +4,34 @@
 // operations and every parseFloat/toFixed call exactly where it is.
 const { LEAVE_TYPES, MONTH_NAMES } = require('../constants');
 
+// Leave types shown on the Privilege Leave Card instead of the VL/SL card.
+const PRIVILEGE_LEAVE_TYPES = [LEAVE_TYPES.SPECIAL, LEAVE_TYPES.FORCE, LEAVE_TYPES.WELLNESS, LEAVE_TYPES.SOLO_PARENT, LEAVE_TYPES.MATERNITY, LEAVE_TYPES.PATERNITY, LEAVE_TYPES.SBW];
+
+// Description keywords used for older ledger rows that have no leave_type.
+const PRIVILEGE_DESC_KEYWORDS = ['special leave', 'force leave', 'paternity', 'wellness', 'solo parent', 'maternity', 'special benefits for women', 'special benefits for woman'];
+
+// Default allocations used to work out the amount of the first privilege entry of the year.
+const DEFAULT_PRIVILEGE_CAPS = { 'sp_bal': 3, 'fl_bal': 5, 'wl_bal': 5, 'spl_bal': 7, 'mat_bal': 105, 'pat_bal': 7 };
+
+// Privilege snapshot column <-> description keyword (first match wins, in this order).
+const PRIVILEGE_SNAPSHOT_TYPES = [
+    { key: 'sp_bal', desc: 'special' },
+    { key: 'fl_bal', desc: 'force' },
+    { key: 'wl_bal', desc: 'wellness' },
+    { key: 'spl_bal', desc: 'solo' },
+    { key: 'mat_bal', desc: 'maternity' },
+    { key: 'pat_bal', desc: 'paternity' }
+];
+
+// Is this ledger row a privilege leave? Uses the leave_type column, falling back to the
+// description for older rows without one.
+function isPrivilegeEntry(entry) {
+    const leaveType = entry.leave_type || ''; // Metadata column
+    const desc = (entry.transaction_desc || '').toLowerCase(); // Fallback description
+    return PRIVILEGE_LEAVE_TYPES.includes(leaveType) ||
+           (leaveType === '' && PRIVILEGE_DESC_KEYWORDS.some(k => desc.includes(k)));
+}
+
 // Starting VL/SL balance of the card, in priority order:
 //   1. previous year's archive (only if the employee was registered by then)
 //   2. this year's first REGISTRATION ledger row
@@ -60,18 +88,10 @@ function buildVlSlRows(ledgerRows, startingBalance, cutoffLedgerId, year) {
         if (entry.id <= cutoffLedgerId) return false;
 
         const type = entry.transaction_type;
-        const leaveType = entry.leave_type || ''; // Metadata column
-        const desc = (entry.transaction_desc || '').toLowerCase(); // Fallback description
-
         // Registration and Rollover entries are system entries
         const isSystem = type === 'REGISTRATION' || type === 'ROLLOVER';
 
-        // Check if it's a privilege leave using the reliable leave_type column
-        // Fallback to string matching for older records
-        const isPrivilege = [LEAVE_TYPES.SPECIAL, LEAVE_TYPES.FORCE, LEAVE_TYPES.WELLNESS, LEAVE_TYPES.SOLO_PARENT, LEAVE_TYPES.MATERNITY, LEAVE_TYPES.PATERNITY, LEAVE_TYPES.SBW].includes(leaveType) ||
-                            (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('paternity') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women') || desc.includes('special benefits for woman')));
-
-        return !isSystem && !isPrivilege;
+        return !isSystem && !isPrivilegeEntry(entry);
     });
 
     let runningBalance = { vl: parseFloat(startingBalance.vl), sl: parseFloat(startingBalance.sl) };
@@ -183,13 +203,7 @@ function buildVlSlRows(ledgerRows, startingBalance, cutoffLedgerId, year) {
 
 // Privilege Leave Card: one row per privilege ledger entry.
 function buildPrivilegeRows(ledgerRows) {
-    const privilegeEntries = ledgerRows.filter(entry => {
-        const leaveType = entry.leave_type || '';
-        const desc = (entry.transaction_desc || '').toLowerCase();
-
-        return [LEAVE_TYPES.SPECIAL, LEAVE_TYPES.FORCE, LEAVE_TYPES.WELLNESS, LEAVE_TYPES.SOLO_PARENT, LEAVE_TYPES.MATERNITY, LEAVE_TYPES.PATERNITY, LEAVE_TYPES.SBW].includes(leaveType) ||
-               (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('paternity') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women') || desc.includes('special benefits for woman')));
-    });
+    const privilegeEntries = ledgerRows.filter(isPrivilegeEntry);
 
     return privilegeEntries.map((entry, idx) => {
         const actionDate = new Date(entry.action_date);
@@ -201,20 +215,10 @@ function buildPrivilegeRows(ledgerRows) {
 
         // Calculation from snapshots if deducted_with_pay is 0/null
         if (amount === 0) {
-            const types = [
-                { key: 'sp_bal', desc: 'special' },
-                { key: 'fl_bal', desc: 'force' },
-                { key: 'wl_bal', desc: 'wellness' },
-                { key: 'spl_bal', desc: 'solo' },
-                { key: 'mat_bal', desc: 'maternity' },
-                { key: 'pat_bal', desc: 'paternity' }
-            ];
-
-            for (const t of types) {
+            for (const t of PRIVILEGE_SNAPSHOT_TYPES) {
                 if (entry.transaction_desc.toLowerCase().includes(t.desc)) {
                     // For the first entry, we compare against the default allocation
-                    const defaultCaps = { 'sp_bal': 3, 'fl_bal': 5, 'wl_bal': 5, 'spl_bal': 7, 'mat_bal': 105, 'pat_bal': 7 };
-                    const prevBal = idx > 0 ? parseFloat(privilegeEntries[idx - 1][t.key]) : defaultCaps[t.key];
+                    const prevBal = idx > 0 ? parseFloat(privilegeEntries[idx - 1][t.key]) : DEFAULT_PRIVILEGE_CAPS[t.key];
                     const diff = prevBal - parseFloat(entry[t.key]);
                     if (diff !== 0) amount = diff;
                     break;
@@ -258,6 +262,8 @@ function closingPrivileges(ledgerRows) {
 }
 
 module.exports = {
+    PRIVILEGE_LEAVE_TYPES,
+    isPrivilegeEntry,
     computeStartingBalance,
     buildVlSlRows,
     buildPrivilegeRows,
