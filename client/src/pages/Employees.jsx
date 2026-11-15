@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, Clock, X } from 'lucide-react';
 import Pagination from '../components/Pagination';
+import PrivilegeTiles from '../components/PrivilegeTiles';
 import RegisterEmployeeModal from '../components/modals/RegisterEmployeeModal';
 import EditEmployeeModal from '../components/modals/EditEmployeeModal';
 import EncodeLeaveModal from '../components/modals/EncodeLeaveModal';
@@ -401,40 +402,13 @@ const Employees = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SPECIAL</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_leave || 0)} / 3</div>
-                  </div>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>FORCE</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.force_leave || 0)} / 5</div>
-                  </div>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>WELLNESS</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.wellness_leave || 0)} / 5</div>
-                  </div>
-                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SOLO PARENT</div>
-                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.solo_parent_leave || 0)} / 7</div>
-                  </div>
-                  {selectedEmp.sex === 'Female' && (
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MATERNITY</div>
-                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.maternity_leave || 0)} / 105</div>
-                    </div>
-                  )}
-                  {selectedEmp.sex === 'Male' && (
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>PATERNITY</div>
-                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.paternity_leave || 0)} / 7</div>
-                    </div>
-                  )}
-                  {selectedEmp.sex === 'Female' && (
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SP. BENEFITS (WOMEN)</div>
-                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_benefits_for_women || 0)} / 30</div>
-                    </div>
-                  )}
+                  <PrivilegeTiles
+                    employee={selectedEmp}
+                    allDefaultZero
+                    tileStyle={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}
+                    labelStyle={{ fontSize: '0.55rem', opacity: 0.7 }}
+                    valueStyle={{ fontSize: '0.9rem' }}
+                  />
                 </div>
 
                 {yearlyHistory.length > 0 && (
