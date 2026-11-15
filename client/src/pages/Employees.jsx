@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, RefreshCw as RefreshIcon, Clock, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, Clock, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import RegisterEmployeeModal from '../components/modals/RegisterEmployeeModal';
 import EditEmployeeModal from '../components/modals/EditEmployeeModal';
 import EncodeLeaveModal from '../components/modals/EncodeLeaveModal';
@@ -54,17 +54,6 @@ const Employees = () => {
     } catch (err) {
       console.error('Audit failed', err);
     }
-  };
-
-  const handleMonthChange = (e) => {
-    const val = parseInt(e.target.value);
-    if (!isNaN(val)) setAccrualMonth(Math.min(12, Math.max(1, val)));
-  };
-
-  const handleYearChange = (e) => {
-    const val = parseInt(e.target.value);
-    const currentYear = new Date().getFullYear();
-    if (!isNaN(val)) setAccrualYear(Math.min(currentYear + 5, Math.max(2000, val)));
   };
 
   const fetchEmployees = async () => {
@@ -527,4 +516,3 @@ const Employees = () => {
 };
 
 export default Employees;
-;
