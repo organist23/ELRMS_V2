@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { isClosedSql, assertMonthOpen } = require('../helpers/closedMonth');
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/api/tardy', async (req, res) => {
     try {
         const [rows] = await db.execute(`
             SELECT t.*, e.full_name,
-                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(t.deduction_date)) OR (a.year = YEAR(t.deduction_date) AND a.month >= MONTH(t.deduction_date))) > 0 AS is_closed
+                   ${isClosedSql('t.deduction_date')} AS is_closed
             FROM tardy_deductions t
             JOIN employees e ON t.employee_id = e.id
             ORDER BY t.deduction_date DESC
@@ -95,18 +96,7 @@ router.post('/api/tardy/undo', async (req, res) => {
         if (tardy.status !== 'Deducted') throw new Error('Only active deductions can be undone');
 
         // Check if the tardy record belongs to a closed month
-        const tardyDate = new Date(tardy.deduction_date);
-        const tardyMonth = tardyDate.getMonth() + 1;
-        const tardyYear = tardyDate.getFullYear();
-
-        const [accrualLogs] = await connection.execute(
-            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
-            [tardyYear, tardyYear, tardyMonth]
-        );
-
-        if (accrualLogs.length > 0) {
-            throw new Error(`Undo Locked: This tardiness record belongs to a closed month (${tardyMonth}/${tardyYear}). To correct credits, please perform a Manual Balance Adjustment.`);
-        }
+        await assertMonthOpen(connection, tardy.deduction_date, 'Undo', 'tardiness record');
 
         const days = parseFloat(tardy.equivalent_day);
 
@@ -159,18 +149,7 @@ router.post('/api/tardy/redo', async (req, res) => {
         if (tardy.status !== 'Undone') throw new Error('Only undone deductions can be redone');
 
         // Check if the tardy record belongs to a closed month
-        const tardyDate = new Date(tardy.deduction_date);
-        const tardyMonth = tardyDate.getMonth() + 1;
-        const tardyYear = tardyDate.getFullYear();
-
-        const [accrualLogs] = await connection.execute(
-            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
-            [tardyYear, tardyYear, tardyMonth]
-        );
-
-        if (accrualLogs.length > 0) {
-            throw new Error(`Redo Locked: This tardiness record belongs to a closed month (${tardyMonth}/${tardyYear}). To correct credits, please perform a Manual Balance Adjustment.`);
-        }
+        await assertMonthOpen(connection, tardy.deduction_date, 'Redo', 'tardiness record');
 
         const days = parseFloat(tardy.equivalent_day);
 

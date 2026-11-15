@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { isClosedSql, assertMonthOpen } = require('../helpers/closedMonth');
 const { LEAVE_TYPES } = require('../constants');
 
 const router = express.Router();
@@ -9,7 +10,7 @@ router.get('/api/leaves/pending', async (req, res) => {
     try {
         const [rows] = await db.execute(`
             SELECT l.*, e.full_name,
-                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(l.applied_at)) OR (a.year = YEAR(l.applied_at) AND a.month >= MONTH(l.applied_at))) > 0 AS is_closed
+                   ${isClosedSql('l.applied_at')} AS is_closed
             FROM leave_applications l
             JOIN employees e ON l.employee_id = e.id
             WHERE l.status = 'Pending Approval'
@@ -86,16 +87,7 @@ router.post('/api/leaves/approve', async (req, res) => {
         const app_data = apps[0];
 
         // Check if the leave application belongs to a closed month (accrual already generated)
-        const leaveDateApprove = new Date(app_data.applied_at);
-        const leaveMonthApprove = leaveDateApprove.getMonth() + 1;
-        const leaveYearApprove = leaveDateApprove.getFullYear();
-        const [accrualLogsApprove] = await connection.execute(
-            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
-            [leaveYearApprove, leaveYearApprove, leaveMonthApprove]
-        );
-        if (accrualLogsApprove.length > 0) {
-            throw new Error(`Approve Locked: This leave application belongs to a closed month (${leaveMonthApprove}/${leaveYearApprove}). To correct credits, please perform a Manual Balance Adjustment.`);
-        }
+        await assertMonthOpen(connection, app_data.applied_at, 'Approve', 'leave application');
 
         const field_map = {
             'Vacation Leave': 'vacation_leave',
@@ -170,18 +162,7 @@ router.post('/api/leaves/undo', async (req, res) => {
         if (app_data.status !== 'Approved') throw new Error('Only approved applications can be undone');
 
         // Check if the leave application belongs to a closed month (accrual already generated)
-        const leaveDate = new Date(app_data.applied_at);
-        const leaveMonth = leaveDate.getMonth() + 1;
-        const leaveYear = leaveDate.getFullYear();
-
-        const [accrualLogs] = await connection.execute(
-            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
-            [leaveYear, leaveYear, leaveMonth]
-        );
-
-        if (accrualLogs.length > 0) {
-            throw new Error(`Undo Locked: This leave application belongs to a closed month (${leaveMonth}/${leaveYear}). To correct credits, please perform a Manual Balance Adjustment.`);
-        }
+        await assertMonthOpen(connection, app_data.applied_at, 'Undo', 'leave application');
 
         const field_map = {
             'Vacation Leave': 'vacation_leave',
@@ -237,16 +218,7 @@ router.post('/api/leaves/reject', async (req, res) => {
         const app_data = apps[0];
 
         // Check if the leave application belongs to a closed month (accrual already generated)
-        const leaveDateReject = new Date(app_data.applied_at);
-        const leaveMonthReject = leaveDateReject.getMonth() + 1;
-        const leaveYearReject = leaveDateReject.getFullYear();
-        const [accrualLogsReject] = await connection.execute(
-            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
-            [leaveYearReject, leaveYearReject, leaveMonthReject]
-        );
-        if (accrualLogsReject.length > 0) {
-            throw new Error(`Reject Locked: This leave application belongs to a closed month (${leaveMonthReject}/${leaveYearReject}). To correct credits, please perform a Manual Balance Adjustment.`);
-        }
+        await assertMonthOpen(connection, app_data.applied_at, 'Reject', 'leave application');
 
         if (app_data.leave_type === LEAVE_TYPES.FORCE) {
             // === FORCE LEAVE SPECIAL CASE: Exigency of Service ===
@@ -329,7 +301,7 @@ router.get('/api/leaves/history', async (req, res) => {
         `;
         let dataQuery = `
             SELECT l.*, e.full_name,
-                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(l.applied_at)) OR (a.year = YEAR(l.applied_at) AND a.month >= MONTH(l.applied_at))) > 0 AS is_closed
+                   ${isClosedSql('l.applied_at')} AS is_closed
             FROM leave_applications l
             JOIN employees e ON l.employee_id = e.id
             WHERE l.status != 'Pending Approval'
